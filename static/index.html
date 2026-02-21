@@ -542,7 +542,12 @@
       const text = document.getElementById('pipelineStatusText');
       const startBtn = document.getElementById('btnStart');
       const stopBtn = document.getElementById('btnStop');
-      if (status.running) {
+      if (status.vercel) {
+        wrap.classList.remove('running');
+        text.textContent = 'Unavailable (run locally to use pipeline)';
+        startBtn.disabled = true;
+        stopBtn.disabled = true;
+      } else if (status.running) {
         wrap.classList.add('running');
         text.textContent = 'Running' + (status.pid ? ' (PID ' + status.pid + ')' : '');
         startBtn.disabled = true;

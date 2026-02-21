@@ -30,10 +30,12 @@ from supabase_client import get_supabase
 app = Flask(__name__, static_folder="static", static_url_path="")
 CORS(app)
 
-CONFIG_JSON = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+# On Vercel, filesystem is read-only except /tmp; pipeline (subprocess) is not available
+IS_VERCEL = os.environ.get("VERCEL") == "1"
+CONFIG_JSON = os.path.join("/tmp" if IS_VERCEL else os.path.dirname(os.path.abspath(__file__)), "config.json")
 APPLIED_CSV = os.path.join(REFERENCE_DIR, "all excels", "all_applied_applications_history.csv")
 
-# Global subprocess handle for the bot (one at a time)
+# Global subprocess handle for the bot (one at a time; not used on Vercel)
 _bot_process = None
 
 
@@ -44,6 +46,8 @@ def _load_config() -> dict:
                 return json.load(f)
         except Exception:
             pass
+    if IS_VERCEL or not os.path.isdir(REFERENCE_DIR):
+        return get_default_config()
     return read_config_from_reference()
 
 
@@ -133,9 +137,12 @@ def save_config():
 
 @app.route("/api/config/load-from-reference", methods=["POST"])
 def load_from_reference():
-    """Reload config from reference repo. Saves to Supabase if signed in, else to file."""
+    """Reload config from reference repo. Saves to Supabase if signed in, else to file. On Vercel returns defaults."""
     try:
-        config = read_config_from_reference()
+        if IS_VERCEL or not os.path.isdir(REFERENCE_DIR):
+            config = get_default_config()
+        else:
+            config = read_config_from_reference()
         user_id = get_user_id_from_request()
         if user_id:
             _upsert_config_for_user(user_id, config)
@@ -228,7 +235,9 @@ def sync_applied_jobs(user_id):
 
 @app.route("/api/pipeline/status", methods=["GET"])
 def pipeline_status():
-    """Return whether the bot is running and optional PID."""
+    """Return whether the bot is running and optional PID. On Vercel pipeline is never running."""
+    if IS_VERCEL:
+        return jsonify({"running": False, "vercel": True})
     global _bot_process
     if _bot_process is None:
         return jsonify({"running": False})
@@ -240,7 +249,12 @@ def pipeline_status():
 
 @app.route("/api/pipeline/start", methods=["POST"])
 def pipeline_start():
-    """Write config to reference, then start runAiBot.py. Config can be in request body (e.g. when user is signed in)."""
+    """Write config to reference, then start runAiBot.py. On Vercel returns 503 (run locally)."""
+    if IS_VERCEL:
+        return jsonify({
+            "error": "Pipeline cannot run on Vercel. Run the app locally to start/stop the bot.",
+            "vercel": True,
+        }), 503
     global _bot_process
     if _bot_process is not None and _bot_process.poll() is None:
         return jsonify({"error": "Pipeline already running", "running": True}), 409

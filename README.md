@@ -54,6 +54,12 @@ Then open **http://localhost:5001**.
 - **Stop pipeline** terminates the bot.
 - **Applied jobs** tab: view jobs; when signed in, **Sync from bot CSV** imports from the bot’s CSV into your account.
 
+## Deploy to Vercel
+
+- Connect the repo to [Vercel](https://vercel.com); the project is configured via `vercel.json`.
+- Set environment variables in Vercel: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`.
+- **Pipeline (Start/Stop bot)** does not run on Vercel; use the app locally to run the LinkedIn bot. On Vercel you can still sign in, edit config, view/sync applied jobs, and save to Supabase.
+
 ## Disclaimer
 
 This tool is for educational use. Comply with LinkedIn’s terms of service and use at your own risk. See the [reference repo](https://github.com/GodsScion/Auto_job_applier_linkedIn) for full disclaimer and license (AGPL-3.0).
