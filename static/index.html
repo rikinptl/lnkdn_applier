@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LinkedIn Auto Job Applier — Config & Pipeline</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0f0f12;
+      --surface: #18181c;
+      --surface2: #222228;
+      --border: #2e2e36;
+      --text: #e4e4e7;
+      --textMuted: #a1a1aa;
+      --accent: #3b82f6;
+      --accentHover: #2563eb;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --radius: 10px;
+      --font: 'DM Sans', system-ui, sans-serif;
+      --fontMono: 'JetBrains Mono', monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+    .layout {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin: 0 0 0.5rem;
+      letter-spacing: -0.02em;
+    }
+    .subtitle {
+      color: var(--textMuted);
+      margin-bottom: 2rem;
+    }
+    .tabs {
+      display: flex;
+      gap: 0.25rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .tab {
+      padding: 0.6rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--textMuted);
+      cursor: pointer;
+      font: inherit;
+      font-weight: 500;
+    }
+    .tab:hover { color: var(--text); border-color: var(--textMuted); }
+    .tab.active { background: var(--surface2); color: var(--accent); border-color: var(--accent); }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .panel h2 { font-size: 1.15rem; margin: 0 0 1rem; color: var(--text); }
+    .form-grid {
+      display: grid;
+      gap: 1rem;
+    }
+    label {
+      display: block;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 0.35rem;
+    }
+    label .hint { font-weight: 400; color: var(--textMuted); font-size: 0.9em; }
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    input[type="url"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font: inherit;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+    textarea { min-height: 80px; resize: vertical; }
+    .row { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .row > * { flex: 1 1 200px; }
+    .checkbox-wrap { display: flex; align-items: center; gap: 0.5rem; }
+    .checkbox-wrap input { width: auto; }
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .tag-list input { max-width: 200px; }
+    .btn {
+      padding: 0.6rem 1.25rem;
+      border-radius: var(--radius);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: background 0.15s, color 0.15s;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accentHover); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: var(--border); }
+    .pipeline-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      margin-top: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .pipeline-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 500;
+    }
+    .pipeline-status .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--textMuted);
+    }
+    .pipeline-status.running .dot { background: var(--success); box-shadow: 0 0 8px var(--success); }
+    .pipeline-actions { display: flex; gap: 0.75rem; }
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      padding: 0.75rem 1.25rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-weight: 500;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      z-index: 100;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.error { border-color: var(--danger); }
+    .auth-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      padding: 0.75rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .auth-bar .user-info { color: var(--textMuted); font-size: 0.9em; }
+    .auth-bar .btn-signin { background: #4285f4; color: #fff; }
+    .auth-bar .btn-signin:hover { background: #3367d6; }
+    .jobs-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+    .jobs-table th, .jobs-table td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+    .jobs-table th { color: var(--textMuted); font-weight: 500; font-size: 0.85em; }
+    .jobs-table a { color: var(--accent); text-decoration: none; }
+    .jobs-table a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <div class="auth-bar">
+      <span class="user-info" id="authStatus">Not signed in — config and jobs are local.</span>
+      <div>
+        <button type="button" class="btn btn-signin" id="btnSignIn">Sign in with Google</button>
+        <button type="button" class="btn btn-ghost" id="btnSignOut" style="display: none;">Sign out</button>
+      </div>
+    </div>
+    <h1>LinkedIn Auto Job Applier</h1>
+    <p class="subtitle">Configure the bot and start or stop the application pipeline.</p>
+
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab active" data-tab="personals">Personals</button>
+      <button type="button" class="tab" data-tab="questions">Questions & Resume</button>
+      <button type="button" class="tab" data-tab="search">Search</button>
+      <button type="button" class="tab" data-tab="secrets">Secrets & AI</button>
+      <button type="button" class="tab" data-tab="settings">Settings</button>
+      <button type="button" class="tab" data-tab="pipeline">Pipeline</button>
+      <button type="button" class="tab" data-tab="jobs">Applied jobs</button>
+    </div>
+
+    <div id="panel-personals" class="panel active">
+      <h2>Personal & contact</h2>
+      <div class="form-grid">
+        <div class="row">
+          <div><label>First name</label><input type="text" name="personals.first_name" /></div>
+          <div><label>Middle name</label><input type="text" name="personals.middle_name" /></div>
+          <div><label>Last name</label><input type="text" name="personals.last_name" /></div>
+        </div>
+        <div><label>Phone number</label><input type="text" name="personals.phone_number" placeholder="10+ digits" /></div>
+        <div><label>Current city</label><input type="text" name="personals.current_city" placeholder="Leave empty to use job location" /></div>
+        <div><label>Street</label><input type="text" name="personals.street" /></div>
+        <div class="row">
+          <div><label>State</label><input type="text" name="personals.state" /></div>
+          <div><label>Zipcode</label><input type="text" name="personals.zipcode" /></div>
+          <div><label>Country</label><input type="text" name="personals.country" /></div>
+        </div>
+        <div class="row">
+          <div><label>Ethnicity</label><select name="personals.ethnicity"><option value="Decline">Decline</option><option value="Hispanic/Latino">Hispanic/Latino</option><option value="Asian">Asian</option><option value="White">White</option><option value="Black or African American">Black or African American</option><option value="Other">Other</option></select></div>
+          <div><label>Gender</label><select name="personals.gender"><option value="Decline">Decline</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select></div>
+          <div><label>Disability status</label><select name="personals.disability_status"><option value="Decline">Decline</option><option value="Yes">Yes</option><option value="No">No</option></select></div>
+          <div><label>Veteran status</label><select name="personals.veteran_status"><option value="Decline">Decline</option><option value="Yes">Yes</option><option value="No">No</option></select></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="panel-questions" class="panel">
+      <h2>Application answers & resume</h2>
+      <div class="form-grid">
+        <div><label>Default resume path <span class="hint">(relative to reference folder)</span></label><input type="text" name="questions.default_resume_path" placeholder="all resumes/default/resume.pdf" /></div>
+        <div class="row">
+          <div><label>Years of experience</label><input type="text" name="questions.years_of_experience" /></div>
+          <div><label>Require visa sponsorship</label><select name="questions.require_visa"><option value="No">No</option><option value="Yes">Yes</option></select></div>
+          <div><label>US citizenship</label><select name="questions.us_citizenship"><option value="U.S. Citizen/Permanent Resident">U.S. Citizen/Permanent Resident</option><option value="Non-citizen allowed to work for any employer">Non-citizen allowed to work for any employer</option><option value="Non-citizen seeking work authorization">Non-citizen seeking work authorization</option><option value="Other">Other</option></select></div>
+        </div>
+        <div><label>Portfolio / website</label><input type="url" name="questions.website" /></div>
+        <div><label>LinkedIn profile URL</label><input type="url" name="questions.linkedIn" /></div>
+        <div class="row">
+          <div><label>Desired salary (number)</label><input type="number" name="questions.desired_salary" /></div>
+          <div><label>Current CTC (number)</label><input type="number" name="questions.current_ctc" /></div>
+          <div><label>Notice period (days)</label><input type="number" name="questions.notice_period" /></div>
+        </div>
+        <div><label>LinkedIn headline</label><input type="text" name="questions.linkedin_headline" /></div>
+        <div><label>Summary</label><textarea name="questions.linkedin_summary" placeholder="Used for summary questions"></textarea></div>
+        <div><label>Cover letter</label><textarea name="questions.cover_letter"></textarea></div>
+        <div><label>User information (for AI)</label><textarea name="questions.user_information_all" placeholder="Resume-like text for AI answers"></textarea></div>
+        <div><label>Recent employer</label><input type="text" name="questions.recent_employer" /></div>
+        <div><label>Confidence level (1–10)</label><input type="text" name="questions.confidence_level" /></div>
+        <div class="checkbox-wrap"><input type="checkbox" name="questions.pause_before_submit" /><label style="margin:0">Pause before each submit</label></div>
+        <div class="checkbox-wrap"><input type="checkbox" name="questions.pause_at_failed_question" /><label style="margin:0">Pause when question can't be answered</label></div>
+        <div class="checkbox-wrap"><input type="checkbox" name="questions.overwrite_previous_answers" /><label style="margin:0">Overwrite previous answers</label></div>
+      </div>
+    </div>
+
+    <div id="panel-search" class="panel">
+      <h2>Job search</h2>
+      <div class="form-grid">
+        <div><label>Search terms <span class="hint">(one per line or comma-separated)</span></label><textarea name="search.search_terms" placeholder="Software Engineer&#10;Python Developer"></textarea></div>
+        <div><label>Search location</label><input type="text" name="search.search_location" placeholder="United States, India, etc." /></div>
+        <div class="row">
+          <div><label>Switch after N applications per term</label><input type="number" name="search.switch_number" /></div>
+          <div><label>Sort by</label><select name="search.sort_by"><option value="">—</option><option value="Most recent">Most recent</option><option value="Most relevant">Most relevant</option></select></div>
+          <div><label>Date posted</label><select name="search.date_posted"><option value="Past 24 hours">Past 24 hours</option><option value="Past week">Past week</option><option value="Past month">Past month</option><option value="Any time">Any time</option></select></div>
+        </div>
+        <div><label>Salary filter</label><select name="search.salary"><option value="">—</option><option value="$40,000+">$40,000+</option><option value="$80,000+">$80,000+</option><option value="$120,000+">$120,000+</option></select></div>
+        <div class="checkbox-wrap"><input type="checkbox" name="search.easy_apply_only" /><label style="margin:0">Easy Apply only</label></div>
+        <div><label>Experience level <span class="hint">(comma-separated)</span></label><input type="text" name="search.experience_level" placeholder="Entry level, Mid-Senior level" /></div>
+        <div><label>Job type</label><input type="text" name="search.job_type" placeholder="Full-time, Part-time, Contract" /></div>
+        <div><label>On-site / Remote / Hybrid</label><input type="text" name="search.on_site" placeholder="Remote, Hybrid, On-site" /></div>
+        <div><label>Bad words in job description (skip) <span class="hint">(comma-separated)</span></label><input type="text" name="search.bad_words" placeholder="US Citizen, No C2C" /></div>
+        <div><label>About company bad words (skip) <span class="hint">(comma-separated)</span></label><input type="text" name="search.about_company_bad_words" /></div>
+        <div class="row">
+          <div><label>Current experience (years) <span class="hint">(-1 = ignore)</span></label><input type="number" name="search.current_experience" /></div>
+          <div class="checkbox-wrap" style="align-self:flex-end"><input type="checkbox" name="search.did_masters" /><label style="margin:0">Have Masters</label></div>
+          <div class="checkbox-wrap" style="align-self:flex-end"><input type="checkbox" name="search.security_clearance" /><label style="margin:0">Security clearance</label></div>
+        </div>
+        <div class="checkbox-wrap"><input type="checkbox" name="search.randomize_search_order" /><label style="margin:0">Randomize search order</label></div>
+        <div class="checkbox-wrap"><input type="checkbox" name="search.pause_after_filters" /><label style="margin:0">Pause after applying filters</label></div>
+      </div>
+    </div>
+
+    <div id="panel-secrets" class="panel">
+      <h2>LinkedIn login & AI</h2>
+      <div class="form-grid">
+        <div><label>LinkedIn email</label><input type="text" name="secrets.username" placeholder="Leave default to use saved browser profile" /></div>
+        <div><label>LinkedIn password</label><input type="password" name="secrets.password" placeholder="Leave default to login manually" /></div>
+        <div class="checkbox-wrap"><input type="checkbox" name="secrets.use_AI" /><label style="margin:0">Use AI for answers / skills</label></div>
+        <div><label>AI provider</label><select name="secrets.ai_provider"><option value="openai">OpenAI</option><option value="deepseek">DeepSeek</option><option value="gemini">Gemini</option></select></div>
+        <div><label>LLM API URL</label><input type="text" name="secrets.llm_api_url" placeholder="https://api.openai.com/v1/" /></div>
+        <div><label>LLM API key</label><input type="password" name="secrets.llm_api_key" placeholder="not-needed for Ollama" /></div>
+        <div><label>Model name</label><input type="text" name="secrets.llm_model" placeholder="gpt-3.5-turbo, llama-3.2-3b-instruct" /></div>
+        <div class="checkbox-wrap"><input type="checkbox" name="secrets.stream_output" /><label style="margin:0">Stream AI output</label></div>
+      </div>
+    </div>
+
+    <div id="panel-settings" class="panel">
+      <h2>Bot behavior</h2>
+      <div class="form-grid">
+        <div class="row">
+          <div><label>Click gap (sec)</label><input type="number" name="settings.click_gap" /></div>
+          <div class="checkbox-wrap" style="align-self:flex-end"><input type="checkbox" name="settings.keep_screen_awake" /><label style="margin:0">Keep screen awake</label></div>
+        </div>
+        <div class="checkbox-wrap"><input type="checkbox" name="settings.run_in_background" /><label style="margin:0">Run in background (no pause dialogs)</label></div>
+        <div class="checkbox-wrap"><input type="checkbox" name="settings.stealth_mode" /><label style="margin:0">Stealth mode (anti-bot)</label></div>
+        <div class="checkbox-wrap"><input type="checkbox" name="settings.safe_mode" /><label style="margin:0">Safe mode (guest Chrome profile)</label></div>
+        <div class="checkbox-wrap"><input type="checkbox" name="settings.close_tabs" /><label style="margin:0">Close external application tabs</label></div>
+        <div class="checkbox-wrap"><input type="checkbox" name="settings.follow_companies" /><label style="margin:0">Follow companies after apply</label></div>
+        <div class="checkbox-wrap"><input type="checkbox" name="settings.run_non_stop" /><label style="margin:0">Run non-stop (cycle filters)</label></div>
+      </div>
+    </div>
+
+    <div id="panel-pipeline" class="panel">
+      <h2>Pipeline</h2>
+      <div class="pipeline-bar">
+        <div class="pipeline-status" id="pipelineStatus">
+          <span class="dot"></span>
+          <span id="pipelineStatusText">Stopped</span>
+        </div>
+        <div class="pipeline-actions">
+          <button type="button" class="btn btn-ghost" id="btnLoadRef">Load from reference</button>
+          <button type="button" class="btn btn-primary" id="btnStart">Start pipeline</button>
+          <button type="button" class="btn btn-danger" id="btnStop">Stop pipeline</button>
+        </div>
+      </div>
+      <p style="color: var(--textMuted); margin-top: 1rem;">Start writes your form config to the reference repo and runs the bot. Stop terminates the process. Chrome will open when you start.</p>
+    </div>
+
+    <div id="panel-jobs" class="panel">
+      <h2>Applied jobs</h2>
+      <p style="color: var(--textMuted); margin-bottom: 0.75rem;">Jobs you applied to. Sign in to keep them under your account; use Sync to import from the bot’s CSV.</p>
+      <button type="button" class="btn btn-ghost" id="btnSyncJobs" style="display: none;">Sync from bot CSV</button>
+      <div id="jobsList"></div>
+    </div>
+
+    <div style="margin-top: 1.5rem;">
+      <button type="button" class="btn btn-ghost" id="btnSave">Save config</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const API = '/api';
+    let config = { personals: {}, questions: {}, search: {}, secrets: {}, settings: {} };
+    let statusInterval = null;
+    let supabase = null;
+    let authToken = null;
+
+    async function initSupabase() {
+      const r = await fetch(API + '/auth/env');
+      const env = await r.json();
+      if (env.SUPABASE_URL && env.SUPABASE_ANON_KEY) {
+        supabase = window.supabase.createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
+        supabase.auth.onAuthStateChange((event, session) => {
+          authToken = session?.access_token || null;
+          updateAuthUI(session?.user);
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') loadConfig();
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') loadAppliedJobs();
+        });
+        const { data: { session } } = await supabase.auth.getSession();
+        authToken = session?.access_token || null;
+        updateAuthUI(session?.user);
+      } else {
+        updateAuthUI(null);
+      }
+    }
+
+    function updateAuthUI(user) {
+      const status = document.getElementById('authStatus');
+      const btnIn = document.getElementById('btnSignIn');
+      const btnOut = document.getElementById('btnSignOut');
+      const btnSync = document.getElementById('btnSyncJobs');
+      if (user) {
+        status.textContent = 'Signed in as ' + (user.email || user.id);
+        btnIn.style.display = 'none';
+        btnOut.style.display = 'inline-flex';
+        if (btnSync) btnSync.style.display = 'inline-flex';
+      } else {
+        status.textContent = 'Not signed in — config and jobs are local.';
+        btnIn.style.display = 'inline-flex';
+        btnOut.style.display = 'none';
+        if (btnSync) btnSync.style.display = 'none';
+      }
+    }
+
+    function authHeaders() {
+      const h = { 'Content-Type': 'application/json' };
+      if (authToken) h['Authorization'] = 'Bearer ' + authToken;
+      return h;
+    }
+
+    function showToast(msg, isError = false) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.toggle('error', isError);
+      el.classList.add('show');
+      clearTimeout(el._t);
+      el._t = setTimeout(() => el.classList.remove('show'), 3000);
+    }
+
+    function parseList(val) {
+      if (Array.isArray(val)) return val;
+      if (typeof val !== 'string') return [];
+      return val.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+    }
+    function formatList(arr) { return Array.isArray(arr) ? arr.join(', ') : ''; }
+
+    function formToConfig() {
+      const out = { personals: {}, questions: {}, search: {}, secrets: {}, settings: {} };
+      document.querySelectorAll('[name^="personals."], [name^="questions."], [name^="search."], [name^="secrets."], [name^="settings."]').forEach(el => {
+        const [section, key] = el.name.split('.');
+        let value = el.type === 'checkbox' ? el.checked : el.value;
+        if (key === 'search_terms') value = parseList(value);
+        else if (['experience_level', 'job_type', 'on_site', 'bad_words', 'about_company_bad_words'].includes(key)) value = parseList(value);
+        else if (['desired_salary', 'current_ctc', 'notice_period', 'switch_number', 'current_experience', 'click_gap'].includes(key)) value = value === '' ? (key === 'current_experience' ? -1 : 0) : Number(value);
+        out[section][key] = value;
+      });
+      return out;
+    }
+
+    function configToForm(data) {
+      config = data;
+      document.querySelectorAll('[name^="personals."], [name^="questions."], [name^="search."], [name^="secrets."], [name^="settings."]').forEach(el => {
+        const [section, key] = el.name.split('.');
+        const val = data[section] && data[section][key];
+        if (el.type === 'checkbox') el.checked = !!val;
+        else if (key === 'search_terms') el.value = formatList(val);
+        else if (['experience_level', 'job_type', 'on_site', 'bad_words', 'about_company_bad_words', 'companies', 'location', 'industry'].includes(key)) el.value = formatList(val);
+        else el.value = val == null ? '' : val;
+      });
+    }
+
+    async function loadConfig() {
+      try {
+        const r = await fetch(API + '/config', { headers: authHeaders() });
+        const data = await r.json();
+        if (data.error) throw new Error(data.error);
+        configToForm(data);
+      } catch (e) {
+        showToast('Failed to load config: ' + e.message, true);
+      }
+    }
+
+    async function saveConfig() {
+      const payload = formToConfig();
+      try {
+        const r = await fetch(API + '/config', { method: 'PUT', headers: authHeaders(), body: JSON.stringify(payload) });
+        const data = await r.json();
+        if (data.error) throw new Error(data.error);
+        configToForm(data);
+        showToast('Config saved.');
+      } catch (e) {
+        showToast('Save failed: ' + e.message, true);
+      }
+    }
+
+    async function loadFromReference() {
+      try {
+        const r = await fetch(API + '/config/load-from-reference', { method: 'POST', headers: authHeaders() });
+        const data = await r.json();
+        if (data.error) throw new Error(data.error);
+        configToForm(data);
+        showToast('Loaded from reference repo.');
+      } catch (e) {
+        showToast('Load failed: ' + e.message, true);
+      }
+    }
+
+    async function loadAppliedJobs() {
+      try {
+        const r = await fetch(API + '/applied-jobs', { headers: authHeaders() });
+        const data = await r.json();
+        if (data.error) throw new Error(data.error);
+        renderJobsList(Array.isArray(data) ? data : []);
+      } catch (e) {
+        renderJobsList([]);
+      }
+    }
+
+    function renderJobsList(jobs) {
+      const el = document.getElementById('jobsList');
+      if (!jobs.length) {
+        el.innerHTML = '<p style="color: var(--textMuted);">No applied jobs yet. Run the pipeline or Sync from bot CSV (when signed in).</p>';
+        return;
+      }
+      el.innerHTML = '<table class="jobs-table"><thead><tr><th>Title</th><th>Company</th><th>HR</th><th>Link</th><th>Applied</th></tr></thead><tbody>' +
+        jobs.map(j => {
+          const title = (j.Title || j.title || '').trim() || '—';
+          const company = (j.Company || j.company || '').trim() || '—';
+          const hr = (j.HR_Name || j.hr_name || '').trim() || '—';
+          const link = (j.External_Job_link || j.external_job_link || j.Job_Link || j.job_link || '').trim();
+          const applied = (j.Date_Applied || j.date_applied || '').trim() || '—';
+          const jobLink = (j.Job_Link || j.job_link || '').trim();
+          return '<tr><td>' + (jobLink ? '<a href="' + jobLink + '" target="_blank" rel="noopener">' + escapeHtml(title) + '</a>' : escapeHtml(title)) +
+            '</td><td>' + escapeHtml(company) + '</td><td>' + (j.HR_Link || j.hr_link ? '<a href="' + (j.HR_Link || j.hr_link) + '" target="_blank" rel="noopener">' + escapeHtml(hr) + '</a>' : escapeHtml(hr)) +
+            '</td><td>' + (link && link !== 'Easy Applied' ? '<a href="' + link + '" target="_blank" rel="noopener">External</a>' : link || '—') +
+            '</td><td>' + escapeHtml(applied) + '</td></tr>';
+        }).join('') + '</tbody></table>';
+    }
+
+    function escapeHtml(s) {
+      const div = document.createElement('div');
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
+    async function syncAppliedJobs() {
+      try {
+        const r = await fetch(API + '/applied-jobs/sync', { method: 'POST', headers: authHeaders() });
+        const data = await r.json();
+        if (data.error) throw new Error(data.error);
+        showToast('Synced ' + (data.synced || 0) + ' jobs.');
+        loadAppliedJobs();
+      } catch (e) {
+        showToast('Sync failed: ' + e.message, true);
+      }
+    }
+
+    async function pipelineStatus() {
+      const r = await fetch(API + '/pipeline/status', { headers: authHeaders() });
+      return r.json();
+    }
+
+    function updatePipelineUI(status) {
+      const wrap = document.getElementById('pipelineStatus');
+      const text = document.getElementById('pipelineStatusText');
+      const startBtn = document.getElementById('btnStart');
+      const stopBtn = document.getElementById('btnStop');
+      if (status.running) {
+        wrap.classList.add('running');
+        text.textContent = 'Running' + (status.pid ? ' (PID ' + status.pid + ')' : '');
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+      } else {
+        wrap.classList.remove('running');
+        text.textContent = 'Stopped';
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+      }
+    }
+
+    async function startPipeline() {
+      await saveConfig();
+      const payload = { config: formToConfig() };
+      try {
+        const r = await fetch(API + '/pipeline/start', { method: 'POST', headers: authHeaders(), body: JSON.stringify(payload) });
+        const data = await r.json();
+        if (data.error) throw new Error(data.error);
+        updatePipelineUI(data);
+        showToast('Pipeline started.');
+      } catch (e) {
+        showToast('Start failed: ' + e.message, true);
+      }
+    }
+
+    async function stopPipeline() {
+      try {
+        const r = await fetch(API + '/pipeline/stop', { method: 'POST', headers: authHeaders() });
+        const data = await r.json();
+        updatePipelineUI(data);
+        showToast(data.message || 'Pipeline stopped.');
+      } catch (e) {
+        showToast('Stop failed: ' + e.message, true);
+      }
+    }
+
+    document.querySelectorAll('.tab').forEach(t => {
+      t.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
+        t.classList.add('active');
+        const id = 'panel-' + t.dataset.tab;
+        const panel = document.getElementById(id);
+        if (panel) panel.classList.add('active');
+        if (t.dataset.tab === 'jobs') loadAppliedJobs();
+      });
+    });
+
+    document.getElementById('btnSave').addEventListener('click', saveConfig);
+    document.getElementById('btnLoadRef').addEventListener('click', loadFromReference);
+    document.getElementById('btnStart').addEventListener('click', startPipeline);
+    document.getElementById('btnStop').addEventListener('click', stopPipeline);
+    document.getElementById('btnStop').disabled = true;
+    document.getElementById('btnSyncJobs').addEventListener('click', syncAppliedJobs);
+
+    document.getElementById('btnSignIn').addEventListener('click', async () => {
+      if (!supabase) { showToast('Supabase not configured. Add SUPABASE_URL and SUPABASE_ANON_KEY to .env', true); return; }
+      try {
+        await supabase.auth.signInWithOAuth({ provider: 'google' });
+      } catch (e) {
+        showToast('Sign in failed: ' + e.message, true);
+      }
+    });
+    document.getElementById('btnSignOut').addEventListener('click', async () => {
+      if (supabase) await supabase.auth.signOut();
+      authToken = null;
+      updateAuthUI(null);
+      loadConfig();
+      loadAppliedJobs();
+    });
+
+    (async function init() {
+      await initSupabase();
+      await loadConfig();
+      loadAppliedJobs();
+      pipelineStatus().then(updatePipelineUI);
+      statusInterval = setInterval(() => pipelineStatus().then(updatePipelineUI), 3000);
+    })();
+  </script>
+</body>
+</html>
