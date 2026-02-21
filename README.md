@@ -33,7 +33,7 @@ This project wraps the [Auto_job_applier_linkedIn](https://github.com/GodsScion/
 
 5. **Supabase and Google sign-in (optional)**  
    - Use your Supabase project. In **SQL Editor**, run `supabase/schema.sql` to create tables and RLS.  
-   - Enable **Google** in Authentication → Providers; set up OAuth in Google Cloud Console.  
+   - For **Sign in with Google**: see **[docs/GOOGLE_SIGNIN_SETUP.md](docs/GOOGLE_SIGNIN_SETUP.md)** (Google Cloud OAuth + Supabase + Vercel).  
    - Copy `.env.example` to `.env` and set `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET` from Project Settings → API. **Do not commit `.env`.**
 
 ## Run the website

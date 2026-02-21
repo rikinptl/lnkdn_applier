@@ -634,7 +634,8 @@
           showToast('Supabase not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY in Vercel.', true);
           return;
         }
-        supabase.auth.signInWithOAuth({ provider: 'google' }).catch(function(e) {
+        var redirectTo = window.location.origin + window.location.pathname;
+        supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: redirectTo } }).catch(function(e) {
           showToast('Sign in failed: ' + (e && e.message ? e.message : 'Unknown error'), true);
         });
       });
