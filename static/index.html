@@ -63,6 +63,8 @@
       cursor: pointer;
       font: inherit;
       font-weight: 500;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
     .tab:hover { color: var(--text); border-color: var(--textMuted); }
     .tab.active { background: var(--surface2); color: var(--accent); border-color: var(--accent); }
@@ -119,6 +121,7 @@
       cursor: pointer;
       border: none;
       transition: background 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
     }
     .btn-primary { background: var(--accent); color: #fff; }
     .btn-primary:hover { background: var(--accentHover); }
@@ -356,6 +359,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
+    (function() {
+    'use strict';
     const API = '/api';
     let config = { personals: {}, questions: {}, search: {}, secrets: {}, settings: {} };
     let statusInterval = null;
@@ -363,20 +368,24 @@
     let authToken = null;
 
     async function initSupabase() {
-      const r = await fetch(API + '/auth/env');
-      const env = await r.json();
-      if (env.SUPABASE_URL && env.SUPABASE_ANON_KEY) {
-        supabase = window.supabase.createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
-        supabase.auth.onAuthStateChange((event, session) => {
+      try {
+        const r = await fetch(API + '/auth/env');
+        const env = await r.json();
+        if (env.SUPABASE_URL && env.SUPABASE_ANON_KEY && typeof window.supabase !== 'undefined') {
+          supabase = window.supabase.createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
+          supabase.auth.onAuthStateChange((event, session) => {
+            authToken = session?.access_token || null;
+            updateAuthUI(session?.user);
+            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') loadConfig();
+            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') loadAppliedJobs();
+          });
+          const { data: { session } } = await supabase.auth.getSession();
           authToken = session?.access_token || null;
           updateAuthUI(session?.user);
-          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') loadConfig();
-          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') loadAppliedJobs();
-        });
-        const { data: { session } } = await supabase.auth.getSession();
-        authToken = session?.access_token || null;
-        updateAuthUI(session?.user);
-      } else {
+        } else {
+          updateAuthUI(null);
+        }
+      } catch (e) {
         updateAuthUI(null);
       }
     }
@@ -386,15 +395,16 @@
       const btnIn = document.getElementById('btnSignIn');
       const btnOut = document.getElementById('btnSignOut');
       const btnSync = document.getElementById('btnSyncJobs');
+      if (!status || !btnIn) return;
       if (user) {
         status.textContent = 'Signed in as ' + (user.email || user.id);
         btnIn.style.display = 'none';
-        btnOut.style.display = 'inline-flex';
+        if (btnOut) btnOut.style.display = 'inline-flex';
         if (btnSync) btnSync.style.display = 'inline-flex';
       } else {
         status.textContent = 'Not signed in — config and jobs are local.';
         btnIn.style.display = 'inline-flex';
-        btnOut.style.display = 'none';
+        if (btnOut) btnOut.style.display = 'none';
         if (btnSync) btnSync.style.display = 'none';
       }
     }
@@ -538,25 +548,28 @@
     }
 
     function updatePipelineUI(status) {
+      if (!status) return;
       const wrap = document.getElementById('pipelineStatus');
       const text = document.getElementById('pipelineStatusText');
       const startBtn = document.getElementById('btnStart');
       const stopBtn = document.getElementById('btnStop');
+      if (wrap) wrap.classList.remove('running');
+      if (text) text.textContent = 'Stopped';
+      if (startBtn) startBtn.disabled = false;
+      if (stopBtn) stopBtn.disabled = true;
       if (status.vercel) {
-        wrap.classList.remove('running');
-        text.textContent = 'Unavailable (run locally to use pipeline)';
-        startBtn.disabled = true;
-        stopBtn.disabled = true;
+        if (text) text.textContent = 'Unavailable (run locally to use pipeline)';
+        if (startBtn) startBtn.disabled = true;
+        if (stopBtn) stopBtn.disabled = true;
       } else if (status.running) {
-        wrap.classList.add('running');
-        text.textContent = 'Running' + (status.pid ? ' (PID ' + status.pid + ')' : '');
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
+        if (wrap) wrap.classList.add('running');
+        if (text) text.textContent = 'Running' + (status.pid ? ' (PID ' + status.pid + ')' : '');
+        if (startBtn) startBtn.disabled = true;
+        if (stopBtn) stopBtn.disabled = false;
       } else {
-        wrap.classList.remove('running');
-        text.textContent = 'Stopped';
-        startBtn.disabled = false;
-        stopBtn.disabled = true;
+        if (text) text.textContent = 'Stopped';
+        if (startBtn) startBtn.disabled = false;
+        if (stopBtn) stopBtn.disabled = true;
       }
     }
 
@@ -585,47 +598,69 @@
       }
     }
 
-    document.querySelectorAll('.tab').forEach(t => {
-      t.addEventListener('click', () => {
+    // Event delegation for tabs so clicks always work
+    const tabsContainer = document.querySelector('.tabs');
+    if (tabsContainer) {
+      tabsContainer.addEventListener('click', function(e) {
+        const t = e.target.closest('.tab');
+        if (!t || !t.dataset.tab) return;
         document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
         document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
         t.classList.add('active');
-        const id = 'panel-' + t.dataset.tab;
-        const panel = document.getElementById(id);
+        const panel = document.getElementById('panel-' + t.dataset.tab);
         if (panel) panel.classList.add('active');
         if (t.dataset.tab === 'jobs') loadAppliedJobs();
       });
-    });
+    }
 
-    document.getElementById('btnSave').addEventListener('click', saveConfig);
-    document.getElementById('btnLoadRef').addEventListener('click', loadFromReference);
-    document.getElementById('btnStart').addEventListener('click', startPipeline);
-    document.getElementById('btnStop').addEventListener('click', stopPipeline);
-    document.getElementById('btnStop').disabled = true;
-    document.getElementById('btnSyncJobs').addEventListener('click', syncAppliedJobs);
+    const btnSave = document.getElementById('btnSave');
+    if (btnSave) btnSave.addEventListener('click', function() { saveConfig(); });
+    const btnLoadRef = document.getElementById('btnLoadRef');
+    if (btnLoadRef) btnLoadRef.addEventListener('click', function() { loadFromReference(); });
+    const btnStart = document.getElementById('btnStart');
+    if (btnStart) btnStart.addEventListener('click', function() { startPipeline(); });
+    const btnStop = document.getElementById('btnStop');
+    if (btnStop) {
+      btnStop.disabled = true;
+      btnStop.addEventListener('click', function() { stopPipeline(); });
+    }
+    const btnSync = document.getElementById('btnSyncJobs');
+    if (btnSync) btnSync.addEventListener('click', function() { syncAppliedJobs(); });
 
-    document.getElementById('btnSignIn').addEventListener('click', async () => {
-      if (!supabase) { showToast('Supabase not configured. Add SUPABASE_URL and SUPABASE_ANON_KEY to .env', true); return; }
-      try {
-        await supabase.auth.signInWithOAuth({ provider: 'google' });
-      } catch (e) {
-        showToast('Sign in failed: ' + e.message, true);
-      }
-    });
-    document.getElementById('btnSignOut').addEventListener('click', async () => {
-      if (supabase) await supabase.auth.signOut();
-      authToken = null;
-      updateAuthUI(null);
-      loadConfig();
-      loadAppliedJobs();
-    });
+    const btnSignIn = document.getElementById('btnSignIn');
+    if (btnSignIn) {
+      btnSignIn.addEventListener('click', function() {
+        if (!supabase) {
+          showToast('Supabase not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY in Vercel.', true);
+          return;
+        }
+        supabase.auth.signInWithOAuth({ provider: 'google' }).catch(function(e) {
+          showToast('Sign in failed: ' + (e && e.message ? e.message : 'Unknown error'), true);
+        });
+      });
+    }
+    const btnSignOut = document.getElementById('btnSignOut');
+    if (btnSignOut) {
+      btnSignOut.addEventListener('click', function() {
+        if (supabase) supabase.auth.signOut();
+        authToken = null;
+        updateAuthUI(null);
+        loadConfig();
+        loadAppliedJobs();
+      });
+    }
 
     (async function init() {
-      await initSupabase();
-      await loadConfig();
-      loadAppliedJobs();
-      pipelineStatus().then(updatePipelineUI);
-      statusInterval = setInterval(() => pipelineStatus().then(updatePipelineUI), 3000);
+      try {
+        await initSupabase();
+        await loadConfig();
+        loadAppliedJobs();
+        pipelineStatus().then(updatePipelineUI);
+        statusInterval = setInterval(function() { pipelineStatus().then(updatePipelineUI); }, 3000);
+      } catch (err) {
+        if (typeof showToast === 'function') showToast('Page load error: ' + (err && err.message ? err.message : 'Unknown'), true);
+      }
+    })();
     })();
   </script>
 </body>
